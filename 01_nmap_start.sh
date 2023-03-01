@@ -20,7 +20,7 @@ done
 mkdir -p nmap
 
 # Perform Nmap scan to identify all open ports
-nmap_cmd="nmap -p- -oN nmap/all_ports $target -vvv"
+nmap_cmd="nmap -Pn -p- -oN nmap/all_ports $target -vvv"
 if [[ $fast == true ]]; then
     nmap_cmd+=" --max-rtt-timeout 100ms --max-retries 1"
 fi
@@ -31,7 +31,7 @@ ports=$(cat nmap/all_ports | grep "open" | cut -d "/" -f1 | tr "\n" "," | sed 's
 echo "Open ports: $ports"
 
 # Perform Nmap scan on open ports to identify services and vulnerabilities
-nmap_cmd="nmap -p$ports -sC -sV $target -oN nmap/services -vvv"
+nmap_cmd="nmap -Pn -p$ports -sC -sV $target -oN nmap/services -vvv"
 if [[ $fast == true ]]; then
     nmap_cmd+=" --max-rtt-timeout 100ms --max-retries 1"
 fi
