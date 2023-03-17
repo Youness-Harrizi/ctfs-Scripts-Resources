@@ -7,7 +7,10 @@ smbclient -L $1 -U ''
 
 # Check for null sessions
 echo "Checking for null sessions..."
-rpcclient -U "" -N $1 -c enumdomusers,srvinfo,querydominfo,enumdomgroups
+rpcclient -U "" -N $1 -c enumdomusers
+rpcclient -U "" -N $1 -c srvinfo,
+rpcclient -U "" -N $1 -c querydominfo
+rpcclient -U "" -N $1 -c enumdomgroups
 
 # Enumerate users and groups
 echo "Enumerating users and groups..."
