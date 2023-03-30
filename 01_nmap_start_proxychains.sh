@@ -20,7 +20,7 @@ done
 mkdir -p nmap
 
 # Perform Nmap scan to identify all open ports
-nmap_cmd="proxychains -q nmap -Pn --top-ports=1000 -oN nmap/all_ports $target -vvv"
+nmap_cmd="proxychains -q nmap -sT -Pn --top-ports=100 -oN nmap/all_ports $target -vvv"
 if [[ $fast == true ]]; then
     nmap_cmd+=" --max-rtt-timeout 100ms --max-retries 1"
 fi
@@ -31,7 +31,7 @@ ports=$(cat nmap/all_ports | grep "open" |grep -v "Warning" | cut -d "/" -f1 | t
 echo "Open ports: $ports"
 
 # Perform Nmap scan on open ports to identify services and vulnerabilities
-nmap_cmd="proxychains -q nmap -Pn -p$ports -sC -sV $target -oN nmap/services -vvv"
+nmap_cmd="proxychains -q nmap -sT -Pn -p$ports -sC -sV $target -oN nmap/services -vvv"
 if [[ $fast == true ]]; then
     nmap_cmd+=" --max-rtt-timeout 100ms --max-retries 1"
 fi

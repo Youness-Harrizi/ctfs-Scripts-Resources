@@ -4,7 +4,7 @@ dir=$(pwd)
 wordlist="/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt"
 echo "=======start whatweb====="
 proxychains -q whatweb -a 3 $1 |tee web/whatweb.log
-echo "=======start nuclei ====="
-proxychains -q nuclei -u $1 |tee web/nuclei.log
-echo "=======start feroxbuster====="
-proxychains -q feroxbuster -u $1 -w $wordlist -t 16 -x html,php,asp,aspx,jsp -C 404,403  -n -o  web/feroxbuster.log -k
+echo "=======start nikto ====="
+proxychains -q nikto -h $1 |tee web/nikto.log
+echo "=======start dirsearch====="
+proxychains -q dirsearch.py -u $1 -w $wordlist -x 403 -o web/dirsearch.log
