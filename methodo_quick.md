@@ -1,7 +1,3 @@
-Since you are excluding Active Directory, the focus shifts entirely to **server misconfigurations, unpatched services, and weak local credentials**.
-
-Here is a concise workflow for a non-AD internal engagement:
-
 ### **1. Service Triage (Analyze Scan Results)**
 
 Don't just look at ports; look at versions.
